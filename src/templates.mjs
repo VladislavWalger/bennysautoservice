@@ -185,6 +185,34 @@ const hoursCard = (heading = "Öffnungszeiten") => `
   <p class="hu-note">${icon("badge-check")} <span><strong>Hauptuntersuchung:</strong> Montag, Mittwoch und Freitag nach Vereinbarung</span></p>
 </div>`;
 
+// Öffnungszeiten kompakt: aufeinanderfolgende Tage mit gleichen Zeiten zusammenfassen
+const miniHours = () => {
+  const short = { 0: "So", 1: "Mo", 2: "Di", 3: "Mi", 4: "Do", 5: "Fr", 6: "Sa" };
+  const groups = [];
+  for (const h of hours) {
+    const time = h.open ? `${h.open} – ${h.close}` : "geschlossen";
+    const last = groups[groups.length - 1];
+    if (last && last.time === time) last.days.push(h.day);
+    else groups.push({ time, days: [h.day] });
+  }
+  const label = (days) => (days.length > 1 ? `${short[days[0]]} – ${short[days[days.length - 1]]}` : short[days[0]]);
+  return `
+<div class="mini-hours">
+  <div class="mini-hours__head"><span>${icon("clock")} Öffnungszeiten</span><span class="status-pill" data-open-pill hidden></span></div>
+  <dl>${groups.map((g) => `<div><dt>${label(g.days)}</dt><dd>${g.time}</dd></div>`).join("")}</dl>
+  <p>${icon("badge-check")} TÜV im Haus: Mo, Mi, Fr nach Vereinbarung</p>
+</div>`;
+};
+
+const perksBox = () => `
+<div class="perks">
+  <h2 class="perks__title">Darum zu Benny´s Autoservice</h2>
+  <ul class="perks__grid">
+    ${highlights.map((h) => `<li><span class="highlight__icon">${icon(h.icon)}</span><span><strong>${h.title}</strong><br>${h.text}</span></li>`).join("")}
+  </ul>
+  <blockquote class="perks__quote">„${about.quote}“</blockquote>
+</div>`;
+
 const contactCard = () => `
 <div class="card card--contact">
   <h2 class="card__title">${icon("map-pin")} So finden Sie uns</h2>
@@ -437,15 +465,18 @@ export const servicePage = (s) =>
 ${pageHero({ eyebrow: "Leistungen", title: s.headline, iconName: s.icon, crumbs: [{ label: "Leistungen", href: "/#leistungen" }, { label: s.title }] })}
 <section class="section">
   <div class="container detail">
-    <article class="prose">${s.body}</article>
+    <div class="detail__main">
+      <article class="prose">${s.body}</article>
+      ${perksBox()}
+    </div>
     <aside class="detail__aside">
       <div class="card card--cta">
         <h2 class="card__title">Termin vereinbaren</h2>
         <p>Rufen Sie uns an – wir beraten Sie gern persönlich.</p>
         <a class="btn btn--primary btn--block" href="${site.phoneHref}">${icon("phone")} ${site.phone}</a>
         <a class="btn btn--outline btn--block" href="/kontakt-anfahrt/">${icon("calendar-check")} Online anfragen</a>
+        ${miniHours()}
       </div>
-      ${hoursCard()}
     </aside>
   </div>
 </section>
