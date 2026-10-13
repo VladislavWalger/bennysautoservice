@@ -1,0 +1,4 @@
+# Interne Dateien nicht ausliefern
+<FilesMatch "^(config|lib)\.php$">
+  Require all denied
+</FilesMatch>

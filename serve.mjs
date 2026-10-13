@@ -21,6 +21,11 @@ createServer(async (req, res) => {
   const urlPath = posix.normalize(decodeURIComponent(new URL(req.url, "http://x").pathname));
   let file = resolve(root, "." + urlPath);
   if (file !== root && !file.startsWith(root + sep)) return notFound(res);
+  if (extname(file) === ".php") {
+    // Der Node-Vorschauserver kann kein PHP ausführen – zum Testen: php -S localhost:8000 -t dist
+    res.writeHead(501, { "Content-Type": "application/json; charset=utf-8" });
+    return res.end(JSON.stringify({ ok: false, message: "PHP ist in der Node-Vorschau nicht verfügbar." }));
+  }
   try {
     if ((await stat(file)).isDirectory()) {
       if (!urlPath.endsWith("/")) { res.writeHead(301, { Location: urlPath + "/" }); return res.end(); }

@@ -74,6 +74,105 @@
     });
   });
 
+  // ---- HU-Erinnerung
+  document.querySelectorAll("[data-hu-form]").forEach((form) => {
+    const msg = form.querySelector("[data-hu-msg]");
+    const plateInput = form.elements.kennzeichen;
+    const showMsg = (text, type = "") => {
+      msg.textContent = text;
+      msg.className = `hu-form__msg${type ? " is-" + type : ""}`;
+      msg.hidden = false;
+    };
+
+    // Jahresauswahl immer ab dem aktuellen Jahr anbieten
+    const yearSelect = form.querySelector("[data-hu-years]");
+    const thisYear = new Date().getFullYear();
+    yearSelect.innerHTML = [0, 1, 2, 3].map((i) => `<option>${thisYear + i}</option>`).join("");
+
+    plateInput.addEventListener("input", () => {
+      const pos = plateInput.selectionStart;
+      plateInput.value = plateInput.value.toUpperCase();
+      plateInput.setSelectionRange(pos, pos);
+    });
+
+    const dueDate = () => {
+      const month = Number(form.elements.monat.value);
+      const year = Number(form.elements.jahr.value);
+      if (!month || !year) return null;
+      return { month, year };
+    };
+    const pad = (n) => String(n).padStart(2, "0");
+    const calendarData = () => {
+      if (!form.elements.monat.reportValidity()) return null;
+      const due = dueDate();
+      const plate = plateInput.value.trim();
+      const start = `${due.year}${pad(due.month)}01`;
+      const endDate = new Date(Date.UTC(due.year, due.month - 1, 2));
+      const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}`;
+      return {
+        start, end,
+        title: `HU fällig${plate ? " – " + plate : ""}`,
+        details: "Hauptuntersuchung fällig. Termin bei Benny´s Autoservice vereinbaren: 04331-4408244 (TÜV im Haus: Mo, Mi, Fr).",
+        location: "Benny´s Autoservice, Wollinstraße 4, 24782 Büdelsdorf",
+      };
+    };
+
+    form.querySelector("[data-hu-ics]").addEventListener("click", () => {
+      const c = calendarData();
+      if (!c) return;
+      // Zeilen nach RFC 5545 auf max. 75 Zeichen umbrechen (Fortsetzung beginnt mit Leerzeichen)
+      const fold = (line) => line.match(/.{1,60}/gu).join("\r\n ");
+      const esc = (t) => t.replace(/([,;\\])/g, "\\$1");
+      const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+      const ics = [
+        "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Bennys Autoservice//HU-Erinnerung//DE", "CALSCALE:GREGORIAN",
+        "BEGIN:VEVENT",
+        `UID:hu-${c.start}-${Math.random().toString(36).slice(2)}@bennys-autoservice.de`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${c.start}`, `DTEND;VALUE=DATE:${c.end}`,
+        `SUMMARY:${esc(c.title)}`, `DESCRIPTION:${esc(c.details)}`, `LOCATION:${esc(c.location)}`,
+        "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${esc(c.title)}`, "TRIGGER:-P7D", "END:VALARM",
+        "END:VEVENT", "END:VCALENDAR",
+      ].map(fold).join("\r\n");
+      const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: "HU-Erinnerung.ics" });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showMsg("Kalender-Datei erstellt – öffnen Sie sie, um den Termin zu speichern. Ihr Kalender erinnert Sie eine Woche vorher.", "success");
+    });
+
+    form.querySelector("[data-hu-google]").addEventListener("click", () => {
+      const c = calendarData();
+      if (!c) return;
+      const params = new URLSearchParams({ action: "TEMPLATE", text: c.title, dates: `${c.start}/${c.end}`, details: c.details, location: c.location });
+      window.open(`https://calendar.google.com/calendar/render?${params}`, "_blank", "noopener");
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      showMsg("Wird gesendet …");
+      try {
+        const res = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch" } });
+        const data = await res.json();
+        if (data.ok) {
+          form.classList.add("is-done");
+          showMsg(data.message, "success");
+        } else {
+          showMsg(data.message, "error");
+        }
+      } catch {
+        showMsg("Die E-Mail-Erinnerung ist gerade nicht erreichbar. Nutzen Sie einfach den Kalender-Eintrag unten oder rufen Sie uns an: 04331-4408244.", "error");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
   // ---- Sanftes Einblenden beim Scrollen
   const revealTargets = document.querySelectorAll(".service-card, .highlight, .about__media, .about__content, .card, .job-teaser, .hu");
   if ("IntersectionObserver" in window) {

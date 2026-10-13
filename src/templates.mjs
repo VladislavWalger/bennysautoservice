@@ -118,6 +118,7 @@ const footer = () => `
   <div class="container site-footer__bottom">
     <span>© ${new Date().getFullYear()} ${site.name}</span>
     <nav aria-label="Rechtliches">
+      <a href="/hu-erinnerung/">HU-Erinnerung</a>
       <a href="/kontakt-anfahrt/">Kontakt</a>
       <a href="/impressum/">Impressum</a>
       <a href="/datenschutz/">Datenschutz</a>
@@ -129,14 +130,14 @@ const footer = () => `
   <a class="btn btn--dark" href="${site.mapsUrl}" target="_blank" rel="noopener">${icon("navigation")} Route</a>
 </div>`;
 
-export const layout = ({ title, description, path, active, body }) => `<!doctype html>
+export const layout = ({ title, description, path, active, body, noindex = false }) => `<!doctype html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
-<link rel="canonical" href="${site.url}${path}">
+${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${site.url}${path}">`}
 <meta name="theme-color" content="#00427f">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="de_DE">
@@ -218,6 +219,57 @@ const requestForm = () => `
   <p class="request-form__privacy">Beim Absenden öffnet sich Ihr E-Mail-Programm mit einer vorausgefüllten Nachricht. Es werden keine Daten über diese Website gespeichert. Mehr in der <a href="/datenschutz/">Datenschutzerklärung</a>.</p>
   <button class="btn btn--primary" type="submit">${icon("mail")} Anfrage per E-Mail senden</button>
 </form>`;
+
+const huReminder = () => {
+  const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+  const year = new Date().getFullYear();
+  return `
+<section class="section section--tint" id="hu-erinnerung">
+  <div class="container hu-reminder">
+    <div class="hu-reminder__intro">
+      <p class="eyebrow">Kostenloser Service</p>
+      <h2>HU-Erinnerung – nie wieder die Plakette verpassen</h2>
+      <p>Tragen Sie Ihr Kennzeichen und den Monat ein, in dem Ihre Hauptuntersuchung fällig ist. Wir erinnern Sie rechtzeitig per E-Mail – oder Sie speichern den Termin direkt in Ihrem Kalender.</p>
+      <ul class="checklist">
+        <li>Erinnerung ca. 5 Wochen vor Ablauf der Plakette</li>
+        <li>Einmalig – danach werden Ihre Daten gelöscht</li>
+        <li>Jederzeit mit einem Klick abbestellbar</li>
+      </ul>
+    </div>
+    <form class="card hu-form" data-hu-form action="/api/hu-erinnerung.php" method="post">
+      <div class="hu-form__fields">
+        <label class="field field--full"><span>Kennzeichen *</span>
+          <span class="plate"><span class="plate__eu" aria-hidden="true"><span class="plate__stars">★</span>D</span><input name="kennzeichen" required maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="RD-AB 123" pattern="[A-Za-zÄÖÜäöü]{1,3}[\\- ]?[A-Za-z]{1,2}[\\- ]?[0-9]{1,4}[EHeh]?" title="z. B. RD-AB 123"></span>
+        </label>
+        <label class="field"><span>HU fällig im Monat *</span>
+          <select name="monat" required>
+            <option value="">Monat …</option>
+            ${months.map((m, i) => `<option value="${i + 1}">${m}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field"><span>Jahr *</span>
+          <select name="jahr" required data-hu-years>
+            ${[0, 1, 2, 3].map((i) => `<option${i === 0 ? " selected" : ""}>${year + i}</option>`).join("")}
+          </select>
+        </label>
+        <label class="field"><span>Name</span><input name="name" autocomplete="name" maxlength="80"></label>
+        <label class="field"><span>E-Mail *</span><input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+        <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+        <label class="consent field--full"><input type="checkbox" name="einwilligung" value="1" required><span>Ich stimme zu, dass meine Angaben zum Versand der HU-Erinnerung gespeichert und verarbeitet werden. Details in der <a href="/datenschutz/">Datenschutzerklärung</a>. *</span></label>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">${icon("mail")} Per E-Mail erinnern</button>
+      <p class="hu-form__msg" data-hu-msg role="status" aria-live="polite" hidden></p>
+      <div class="hu-form__alt">
+        <span>oder ohne Anmeldung direkt in den eigenen Kalender:</span>
+        <div class="btn-row">
+          <button class="btn btn--outline" type="button" data-hu-ics>${icon("calendar-check")} Kalender-Datei (.ics)</button>
+          <button class="btn btn--outline" type="button" data-hu-google>${icon("calendar-check")} Google Kalender</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>`;
+};
 
 const pageHero = ({ eyebrow, title, lead, iconName, crumbs }) => `
 <section class="page-hero">
@@ -342,9 +394,13 @@ export const homePage = () =>
       <h2>HU &amp; AU ohne Umwege</h2>
       <p>Der TÜV kommt <strong>montags, mittwochs und freitags</strong> direkt zu uns in die Werkstatt. Mängel? Beheben wir gleich vor Ort.</p>
     </div>
-    <a class="btn btn--light" href="/leistungen/haupt-abgasuntersuchung/">HU-Termin vereinbaren ${icon("arrow-right")}</a>
+    <div class="hu__actions">
+      <a class="btn btn--light" href="/leistungen/haupt-abgasuntersuchung/">HU-Termin vereinbaren ${icon("arrow-right")}</a>
+      <a class="hu__link" href="#hu-erinnerung">${icon("clock")} HU-Erinnerung einrichten</a>
+    </div>
   </div>
 </section>
+${huReminder()}
 
 <section class="section" id="kontakt">
   <div class="container">
@@ -393,7 +449,8 @@ ${pageHero({ eyebrow: "Leistungen", title: s.headline, iconName: s.icon, crumbs:
     </aside>
   </div>
 </section>
-<section class="section section--tint">
+${s.slug === "haupt-abgasuntersuchung" ? huReminder() : ""}
+<section class="section${s.slug === "haupt-abgasuntersuchung" ? "" : " section--tint"}">
   <div class="container">
     <div class="section__head"><h2>Weitere Leistungen</h2></div>
     <ul class="services-grid services-grid--compact">${services.filter((o) => o.slug !== s.slug).slice(0, 4).map(serviceCard).join("")}</ul>
@@ -503,7 +560,11 @@ export const privacyBody = () => `
   <li>Schriftarten und Icons werden lokal ausgeliefert – es werden keine Daten an Google Fonts o. Ä. übertragen.</li>
   <li>Karten werden nicht eingebettet; Google Maps öffnet sich erst nach Klick auf „Route planen“.</li>
   <li>Das Anfrageformular speichert nichts, sondern öffnet Ihr E-Mail-Programm.</li>
-</ul>`;
+</ul>
+<h2>HU-Erinnerung per E-Mail</h2>
+<p>Wenn Sie die HU-Erinnerung nutzen, speichern wir Kennzeichen, E-Mail-Adresse, optional Ihren Namen sowie den Monat, in dem Ihre HU fällig ist. Zweck ist ausschließlich der Versand einer einmaligen Erinnerung. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), die Sie jederzeit über den Abmeldelink in jeder E-Mail widerrufen können.</p>
+<p>Nach der Anmeldung erhalten Sie eine E-Mail mit Bestätigungslink (Double-Opt-In). Unbestätigte Anmeldungen löschen wir nach 7 Tagen, alle übrigen Daten unmittelbar nach Versand der Erinnerung bzw. spätestens nach Ablauf des HU-Monats. Die Daten werden auf dem Server dieser Website gespeichert und nicht an Dritte weitergegeben.</p>
+<p>Die Schaltflächen „Kalender-Datei“ und „Google Kalender“ übertragen keine Daten an uns. Bei „Google Kalender“ öffnet sich eine Seite von Google; dort gelten die Datenschutzbestimmungen von Google.</p>`;
 
 export const notFoundPage = () =>
   layout({
@@ -520,3 +581,57 @@ ${pageHero({ title: "Seite nicht gefunden", lead: "Die gesuchte Seite gibt es le
   </div>
 </section>`,
   });
+
+export const huReminderPage = () =>
+  layout({
+    title: `HU-Erinnerung – ${site.name} in Büdelsdorf`,
+    description: "Kostenlose HU-Erinnerung: Kennzeichen und HU-Monat eintragen – wir erinnern Sie rechtzeitig per E-Mail oder Sie speichern den Termin im Kalender.",
+    path: "/hu-erinnerung/",
+    active: "",
+    body: `
+${pageHero({ eyebrow: "Kostenloser Service", title: "HU-Erinnerung", lead: huNote, iconName: "badge-check", crumbs: [{ label: "HU-Erinnerung" }] })}
+${huReminder()}`,
+  });
+
+const statusPages = {
+  gesendet: {
+    title: "Fast geschafft!",
+    lead: "Wir haben Ihnen eine E-Mail geschickt. Bitte klicken Sie auf den Link darin, um Ihre HU-Erinnerung zu bestätigen.",
+    icon: "mail",
+  },
+  bestaetigt: {
+    title: "HU-Erinnerung aktiviert",
+    lead: "Vielen Dank! Wir erinnern Sie rechtzeitig vor Ihrer Hauptuntersuchung per E-Mail.",
+    icon: "check",
+  },
+  abgemeldet: {
+    title: "HU-Erinnerung abbestellt",
+    lead: "Ihre Daten wurden gelöscht. Sie erhalten keine Erinnerung von uns.",
+    icon: "check",
+  },
+  fehler: {
+    title: "Das hat leider nicht geklappt",
+    lead: "Der Link ist ungültig oder abgelaufen, oder bei der Anmeldung ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
+    icon: "x",
+  },
+};
+
+export const huStatusPages = () =>
+  Object.entries(statusPages).map(([slug, p]) => [
+    `hu-erinnerung/${slug}/index.html`,
+    layout({
+      title: `${p.title} – ${site.name}`,
+      description: p.lead,
+      path: `/hu-erinnerung/${slug}/`,
+      active: "",
+      noindex: true,
+      body: `
+${pageHero({ title: p.title, lead: p.lead, iconName: p.icon, crumbs: [{ label: "HU-Erinnerung", href: "/hu-erinnerung/" }, { label: p.title }] })}
+<section class="section">
+  <div class="container btn-row">
+    <a class="btn btn--primary" href="/">Zur Startseite</a>
+    <a class="btn btn--outline" href="${site.phoneHref}">${icon("phone")} ${site.phone}</a>
+  </div>
+</section>`,
+    }),
+  ]);

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { site, services } from "./src/content.mjs";
 import {
   homePage, servicePage, jobsPage, contactPage, legalPage,
-  imprintBody, privacyBody, notFoundPage,
+  imprintBody, privacyBody, notFoundPage, huReminderPage, huStatusPages,
 } from "./src/templates.mjs";
 
 const out = "dist";
@@ -16,6 +16,8 @@ const pages = {
   "impressum/index.html": legalPage({ slug: "impressum", title: "Impressum", body: imprintBody() }),
   "datenschutz/index.html": legalPage({ slug: "datenschutz", title: "Datenschutz", body: privacyBody() }),
   "404.html": notFoundPage(),
+  "hu-erinnerung/index.html": huReminderPage(),
+  ...Object.fromEntries(huStatusPages()),
   ...Object.fromEntries(services.map((s) => [`leistungen/${s.slug}/index.html`, servicePage(s)])),
 };
 
@@ -29,7 +31,7 @@ for (const [file, html] of Object.entries(pages)) {
 }
 
 const urls = Object.keys(pages)
-  .filter((f) => f !== "404.html")
+  .filter((f) => f !== "404.html" && !/^hu-erinnerung\/.+\//.test(f))
   .map((f) => `${site.url}/${f.replace(/index\.html$/, "")}`);
 await writeFile(
   join(out, "sitemap.xml"),
